@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "polars-lazy",
+    "polars-eager",
+    "native-rust",
+]
