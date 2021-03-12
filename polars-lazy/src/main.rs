@@ -53,18 +53,31 @@ fn use_lazy_polars(
                 .alias("newBodyMarkdown"),
         ])
         .inner_join(df_wikipedia, col("Tag1"), col("Language"), None)
-        .groupby(vec![col("hour"), col("newBodyMarkdown")])
+        .groupby(vec![col("OpenStatus")])
         .agg(vec![
-            col("PostId").sum(),
-            col("ReputationAtPostCreation").sum(),
+            col("ReputationAtPostCreation").mean(),
+            col("OwnerUndeletedAnswerCountAtPostTime").mean(),
+            col("Imperative").mean(),
+            col("Object-oriented").mean(),
+            col("Functional").mean(),
+            col("Procedural").mean(),
+            col("Generic").mean(),
+            col("Reflective").mean(),
+            col("Event-driven").mean(),       
         ])
         .select(&[
-            col("hour"),
-            col("newBodyMarkdown"),
-            col("PostId_sum"),
-            col("ReputationAtPostCreation_sum"),
+            col("OpenStatus"),
+            col("ReputationAtPostCreation_mean"),
+            col("OwnerUndeletedAnswerCountAtPostTime_mean"),
+            col("Imperative_mean"),
+            col("Object-oriented_mean"),
+            col("Functional_mean"),
+            col("Procedural_mean"),
+            col("Generic_mean"),
+            col("Reflective_mean"),
+            col("Event-driven_mean"),
         ])
-        .sort("newBodyMarkdown", false)
+        .sort("OpenStatus", false)
         .collect()?;
 
     let mut buffer = File::create(output_path)?;
@@ -75,7 +88,8 @@ fn use_lazy_polars(
         .expect("csv written");
 
     let t_writing = Instant::now();
-
+    
+    println!("Read to write: {}", (t_writing - t_initial).as_millis());
     Ok(())
 }
 

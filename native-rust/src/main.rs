@@ -1,10 +1,10 @@
 mod utils;
-use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::DateTime;
 use itertools::Itertools;
 use rayon::prelude::*;
+use std::collections::HashMap;
 use std::fs::File;
-use std::io::Cursor;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 fn use_native_rust(
     path: &str,
@@ -45,7 +45,7 @@ fn use_native_rust(
     let fmt = "%m/%d/%Y %H:%M:%S";
 
     records
-        .par_iter_mut()
+        .iter_mut()
         .for_each(|record: &mut utils::NativeDataFrame| {
             record.PostCreationDatetime =
                 match DateTime::parse_from_str(record.PostCreationDate.as_ref().unwrap(), fmt) {
@@ -58,110 +58,123 @@ fn use_native_rust(
 
     // 2. Apply Custom Formatting
     records
-        .par_iter_mut()
+        .iter_mut()
         .for_each(|record: &mut utils::NativeDataFrame| {
             record.CountWords =
                 Some(record.BodyMarkdown.as_ref().unwrap().split(' ').count() as f64)
         });
 
     let t_count_words = Instant::now();
+    let hash_wikipedia: &HashMap<&String, &utils::WikiDataFrame> = &records_wikipedia
+        .iter()
+        .map(|record| (record.Language.as_ref().unwrap(), record))
+        .collect();
 
-    for record_wiki in records_wikipedia {
-        records
-            .par_iter_mut()
-            .filter(|record| record.Tag1 == record_wiki.Language)
-            .for_each(|x| {
-                x.Wikipedia = Some(record_wiki.clone());
-            });
-    }
+    records.iter_mut().for_each(|record| {
+        record.Wikipedia = match hash_wikipedia.get(&record.Tag1.as_ref().unwrap()) {
+            Some(wikipedia) => Some(wikipedia.clone().clone()),
+            None => None,
+        }
+    });
 
     let t_merging = Instant::now();
 
-    let groups = &records
-        .into_iter()
-        .sorted_unstable_by(|a, b| Ord::cmp(&a.OpenStatus, &b.OpenStatus))
-        .group_by(|record| record.OpenStatus.clone())
-        .into_iter()
-        .map(|(status, group)| {
-            let (
-                ReputationAtPostCreation,
-                OwnerUndeletedAnswerCountAtPostTime,
-                Imperative,
-                ObjectOriented,
-                Functional,
-                Procedural,
-                Generic,
-                Reflective,
-                EventDriven,
-                count
-            ) = group.into_iter().fold(
-                (0., 0., 0., 0., 0., 0., 0., 0., 0., 0.),
-                |(
-                    ReputationAtPostCreation,
-                    OwnerUndeletedAnswerCountAtPostTime,
-                    Imperative,
-                    ObjectOriented,
-                    Functional,
-                    Procedural,
-                    Generic,
-                    Reflective,
-                    EventDriven,
-                    count
-                ),
-                 record| {
-                    if let Some(wiki) = record.Wikipedia {
-                        (
-                            ReputationAtPostCreation + record.ReputationAtPostCreation.unwrap(),
-                            OwnerUndeletedAnswerCountAtPostTime + record.OwnerUndeletedAnswerCountAtPostTime.unwrap(),
-                            Imperative + wiki.Imperative.unwrap(),
-                            ObjectOriented + wiki.ObjectOriented.unwrap(),
-                            Functional + wiki.Functional.unwrap(),
-                            Procedural + wiki.Procedural.unwrap(),
-                            Generic + wiki.Generic.unwrap(),
-                            Reflective + wiki.Reflective.unwrap(),
-                            EventDriven + wiki.EventDriven.unwrap(),
-                            count + 1.,
-                        )
-                    } else {
-                        (
-                            ReputationAtPostCreation,
-                            OwnerUndeletedAnswerCountAtPostTime,
-                            Imperative,
-                            ObjectOriented,
-                            Functional,
-                            Procedural,
-                            Generic,
-                            Reflective,
-                            EventDriven,
-                            count+1.,
-                        )
+    let groups_hash: HashMap<String, (utils::GroupBy, i16)> = records
+        .iter() // .par_iter()
+        .fold(
+            HashMap::new(), // || HashMap::new()
+            |mut hash_group: HashMap<String, (utils::GroupBy, i16)>, record| {
+                let group: utils::GroupBy = if let Some(wiki) = &record.Wikipedia {
+                    utils::GroupBy {
+                        status: record.OpenStatus.as_ref().unwrap().to_string(),
+                        ReputationAtPostCreation: record.ReputationAtPostCreation.unwrap(),
+                        OwnerUndeletedAnswerCountAtPostTime: record
+                            .OwnerUndeletedAnswerCountAtPostTime
+                            .unwrap(),
+                        Imperative: wiki.Imperative.unwrap(),
+                        ObjectOriented: wiki.ObjectOriented.unwrap(),
+                        Functional: wiki.Functional.unwrap(),
+                        Procedural: wiki.Procedural.unwrap(),
+                        Generic: wiki.Generic.unwrap(),
+                        Reflective: wiki.Reflective.unwrap(),
+                        EventDriven: wiki.EventDriven.unwrap(),
                     }
-                },
-            );
-            utils::GroupBy {
-                status: status.unwrap(), 
-                ReputationAtPostCreation: ReputationAtPostCreation/count,
-                OwnerUndeletedAnswerCountAtPostTime: OwnerUndeletedAnswerCountAtPostTime/count,
-                Imperative: Imperative/count,
-                ObjectOriented: ObjectOriented/count,
-                Functional: Functional/count,
-                Procedural: Procedural/count,
-                Generic: Generic/count,
-                Reflective: Reflective/count,
-                EventDriven: EventDriven/count,
-            }
-        })
-        .collect::<Vec<utils::GroupBy>>();
-    let t_groupby = Instant::now();
+                } else {
+                    utils::GroupBy {
+                        status: record.OpenStatus.as_ref().unwrap().to_string(),
+                        ReputationAtPostCreation: record.ReputationAtPostCreation.unwrap(),
+                        OwnerUndeletedAnswerCountAtPostTime: record
+                            .OwnerUndeletedAnswerCountAtPostTime
+                            .unwrap(),
+                        ..Default::default()
+                    }
+                };
+                if let Some((previous, count)) = hash_group.get_mut(&group.status.to_string()) {
+                    *previous = previous.clone() + group;
+                    *count += 1;
+                } else {
+                    hash_group.insert(group.status.to_string(), (group, 1));
+                };
+                hash_group
+            },
+        ); // }
+           // .reduce(
+           //     || HashMap::new(),
+           //     |prev, other| {
+           //         let set1: HashSet<String> = prev.keys().cloned().collect();
+           //         let set2: HashSet<String> = other.keys().cloned().collect();
+           //         let unions: HashSet<String> = set1.union(&set2).cloned().collect();
+           //         let mut map = HashMap::new();
+           //         for key in unions.iter() {
+           //             map.insert(
+           //                 key.to_string(),
+           //                 match (prev.get(key), other.get(key)) {
+           //                     (Some((previous, count_prev)), Some((group, count_other))) => {
+           //                         (previous.clone() + group.clone(), count_prev + count_other)
+           //                     }
+           //                     (Some(previous), None) => previous.clone(),
+           //                     (None, Some(other)) => other.clone(),
+           //                     (None, None) => (utils::GroupBy::new(), 0),
+           //                 },
+           //             );
+           //         }
+           //         map
+           //     },
+           // );
 
-    let t_filtering = Instant::now();
+    let groups: Vec<utils::GroupBy> = groups_hash
+        .iter()
+        .map(|(_, (group, count))| utils::GroupBy {
+            status: group.status.to_string(),
+            ReputationAtPostCreation: group.ReputationAtPostCreation / count.clone() as f64,
+            OwnerUndeletedAnswerCountAtPostTime: group.OwnerUndeletedAnswerCountAtPostTime
+                / count.clone() as f64,
+            Imperative: group.Imperative / count.clone() as f64,
+            ObjectOriented: group.ObjectOriented / count.clone() as f64,
+            Functional: group.Functional / count.clone() as f64,
+            Procedural: group.Procedural / count.clone() as f64,
+            Generic: group.Generic / count.clone() as f64,
+            Reflective: group.Reflective / count.clone() as f64,
+            EventDriven: group.EventDriven / count.clone() as f64,
+        })
+        .collect();
+
+    let t_groupby = Instant::now();
 
     let mut wtr = csv::Writer::from_path(output_path)?;
 
     for record in groups {
         wtr.serialize(record)?;
     }
+
     let t_writing = Instant::now();
+
+    let _ = records
+        .iter()
+        .filter(|record| record.Tag1 == Some("rust".to_string()))
+        .collect::<Vec<&utils::NativeDataFrame>>();
+
+    let t_filtering = Instant::now();
 
     let timings = [
         t_initial,
@@ -170,8 +183,8 @@ fn use_native_rust(
         t_count_words,
         t_merging,
         t_groupby,
-        t_filtering,
         t_writing,
+        t_filtering,
     ];
     let names = [
         "reading",
@@ -179,8 +192,8 @@ fn use_native_rust(
         "count_words",
         "merging",
         "groupby",
-        "filtering",
         "writing",
+        "filtering",
     ];
     for (i, name) in names.iter().enumerate() {
         println!("{}: {:#?}", name, (timings[i + 1] - timings[i]).as_millis());
@@ -191,7 +204,8 @@ fn use_native_rust(
 
 fn main() {
     let path = "/home/peter/Documents/TEST/RUST/stack-overflow/data/train_October_9_2012.csv";
-    let output_native_rust_path = "/home/peter/Documents/TEST/RUST/stack-overflow/data/polars_eager_output.csv";
+    let output_native_rust_path =
+        "/home/peter/Documents/TEST/RUST/stack-overflow/data/native_rust_output.csv";
     let path_wikipedia = "/home/peter/Documents/TEST/RUST/stack-overflow/data/wikipedia.csv";
 
     use_native_rust(path, path_wikipedia, output_native_rust_path)

@@ -83,6 +83,7 @@ fn use_polars(
         "Reflective",
         "Event-driven",
     ];
+
     let groups = df
         .groupby_with_series(groupby_series, false)?
         .select(target_column)

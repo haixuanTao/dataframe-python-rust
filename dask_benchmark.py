@@ -1,12 +1,16 @@
 import dask.dataframe as dd
-
+import pandas as pd
 from io import StringIO
 from datetime import datetime
 
 t_initial = datetime.now()
 
 # 1. Reading
-PATH = "/home/peter/Documents/TEST/RUST/stack-overflow/data/partitions/*.csv"
+PATH = "/home/peter/Documents/TEST/RUST/stack-overflow/data/train_October_9_2012.csv"
+
+PATH_DASK = (
+    "/home/peter/Documents/TEST/RUST/stack-overflow/data/partitions/*.csv"
+)
 PATH_WIKIPEDIA = (
     "/home/peter/Documents/TEST/RUST/stack-overflow/data/wikipedia.csv"
 )
@@ -14,8 +18,12 @@ PATH_OUTPUT = (
     "/home/peter/Documents/TEST/RUST/stack-overflow/data/python_output.csv"
 )
 
+
+# To create the partition for dask
+df = dd.read_csv(PATH).repartition(npartitions=100).to_csv("data/partitions/*.csv", index=False)
+
 df = dd.read_csv(
-    PATH,
+    PATH_DASK,
     dtype={
         "OwnerUndeletedAnswerCountAtPostTime": "float64",
         "OwnerUserId": "object",

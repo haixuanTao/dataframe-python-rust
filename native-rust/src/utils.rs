@@ -2,6 +2,7 @@ use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::collections::HashMap;
+use std::ops::Add;
 
 #[skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize)]
@@ -78,7 +79,7 @@ pub struct WikiDataFrame {
 
 pub type Record = HashMap<String, String>;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GroupBy {
     pub status: String,
     pub ReputationAtPostCreation: f64,
@@ -90,6 +91,60 @@ pub struct GroupBy {
     pub Generic: f64,
     pub Reflective: f64,
     pub EventDriven: f64,
+}
+
+impl Default for GroupBy {
+    fn default() -> GroupBy {
+        GroupBy {
+            status: "".to_string(),
+            ReputationAtPostCreation: 0.,
+            OwnerUndeletedAnswerCountAtPostTime: 0.,
+            Imperative: 0.,
+            ObjectOriented: 0.,
+            Functional: 0.,
+            Procedural: 0.,
+            Generic: 0.,
+            Reflective: 0.,
+            EventDriven: 0.,
+        }
+    }
+}
+
+impl GroupBy {
+    pub fn new() -> GroupBy {
+        GroupBy {
+            status: "".to_string(),
+            ReputationAtPostCreation: 0.,
+            OwnerUndeletedAnswerCountAtPostTime: 0.,
+            Imperative: 0.,
+            ObjectOriented: 0.,
+            Functional: 0.,
+            Procedural: 0.,
+            Generic: 0.,
+            Reflective: 0.,
+            EventDriven: 0.,
+        }
+    }
+}
+
+impl Add for GroupBy {
+    type Output = GroupBy;
+    fn add(self, other: GroupBy) -> GroupBy {
+        GroupBy {
+            status: self.status,
+            ReputationAtPostCreation: self.ReputationAtPostCreation
+                + other.ReputationAtPostCreation,
+            OwnerUndeletedAnswerCountAtPostTime: self.OwnerUndeletedAnswerCountAtPostTime
+                + other.OwnerUndeletedAnswerCountAtPostTime,
+            Imperative: self.Imperative + other.Imperative,
+            ObjectOriented: self.ObjectOriented + other.ObjectOriented,
+            Functional: self.Functional + other.Functional,
+            Procedural: self.Procedural + other.Procedural,
+            Generic: self.Generic + other.Generic,
+            Reflective: self.Reflective + other.Reflective,
+            EventDriven: self.EventDriven + other.EventDriven,
+        }
+    }
 }
 
 pub fn inspect(path: &str) {
