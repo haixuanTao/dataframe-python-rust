@@ -8,30 +8,22 @@ t_initial = datetime.now()
 # 1. Reading
 PATH = "/home/peter/Documents/TEST/RUST/stack-overflow/data/train_October_9_2012.csv"
 
-PATH_DASK = (
-    "/home/peter/Documents/TEST/RUST/stack-overflow/data/partitions/*.csv"
-)
+PATH_DASK = "/home/peter/Documents/TEST/RUST/stack-overflow/data/SO.csv"
 PATH_WIKIPEDIA = (
     "/home/peter/Documents/TEST/RUST/stack-overflow/data/wikipedia.csv"
 )
 PATH_OUTPUT = (
     "/home/peter/Documents/TEST/RUST/stack-overflow/data/python_output.csv"
 )
-
-
-# To create the partition for dask
-df = dd.read_csv(PATH).repartition(npartitions=100).to_csv("data/partitions/*.csv", index=False)
-
-df = dd.read_csv(
-    PATH_DASK,
-    dtype={
-        "OwnerUndeletedAnswerCountAtPostTime": "float64",
-        "OwnerUserId": "object",
-        "PostId": "object",
-        "ReputationAtPostCreation": "float64",
-        "Unnamed: 0": "object",
-    },
+PATH_DASK_OUTPUT = (
+    "/home/peter/Documents/TEST/RUST/stack-overflow/data/dask-output-*.csv"
 )
+
+df = pd.read_csv(
+    PATH,
+)
+
+df = dd.from_pandas(df, npartitions=2)
 df_wikipedia = dd.read_csv(PATH_WIKIPEDIA)
 
 t_reading = datetime.now()
@@ -46,7 +38,9 @@ t_formatting = datetime.now()
 # 3. Formatting custom field
 count_words = lambda x: len(x.split(" "))
 
-df["BodyMarkdown"] = df["BodyMarkdown"].map(count_words)
+df["BodyMarkdown"] = df["BodyMarkdown"].map(
+    count_words,
+)
 
 t_count_words = datetime.now()
 
@@ -82,7 +76,7 @@ t_filtering = datetime.now()
 
 # 6. Writing
 
-groups.compute().to_csv(PATH_OUTPUT)
+groups.compute().to_csv(PATH_DASK_OUTPUT)
 t_writing = datetime.now()
 
 # 7. printing

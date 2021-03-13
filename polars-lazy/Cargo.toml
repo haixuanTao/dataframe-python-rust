@@ -7,4 +7,5 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-polars = { path =  "/home/peter/Documents/TEST/RUST/polars/polars"}
+polars = { git =  "https://github.com/ritchie46/polars", features = ["simd", "parallel"]}
+# remove simd for stable cargo

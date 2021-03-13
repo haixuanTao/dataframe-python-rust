@@ -1,7 +1,6 @@
 use polars::prelude::*;
-mod utils;
 use std::fs::File;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 fn str_to_date(dates: &Series) -> std::result::Result<Series, PolarsError> {
     let fmt = Some("%m/%d/%Y %H:%M:%S");
@@ -9,11 +8,11 @@ fn str_to_date(dates: &Series) -> std::result::Result<Series, PolarsError> {
     Ok(dates.utf8()?.as_date64(fmt)?.into_series())
 }
 
-fn count_words(dates: &Series) -> std::result::Result<Series, PolarsError> {
-    Ok(dates
+fn count_words(column: &Series) -> std::result::Result<Series, PolarsError> {
+    Ok(column
         .utf8()?
         .into_iter()
-        .map(|opt_name: Option<&str>| opt_name.map(|name: &str| name.split(" ").count() as u64))
+        .map(|opt_name: Option<&str>| opt_name.map(|name: &str| name.split(' ').count() as u64))
         .collect::<UInt64Chunked>()
         .into_series())
 }
@@ -23,7 +22,6 @@ fn use_polars(
     path_wikipedia: &str,
     output_path: &str,
 ) -> std::result::Result<(), Box<dyn std::error::Error>> {
-
     let t_initial = Instant::now();
 
     let target_column = vec![
@@ -39,12 +37,12 @@ fn use_polars(
 
     let mut df = CsvReader::from_path(path)?
         .with_encoding(CsvEncoding::LossyUtf8)
-        // .with_n_threads(Some(1))
+        .with_n_threads(Some(1))
         .has_header(true)
         .finish()?;
-    let mut df_wikipedia = CsvReader::from_path(path_wikipedia)?
+    let df_wikipedia = CsvReader::from_path(path_wikipedia)?
         .with_encoding(CsvEncoding::LossyUtf8)
-        // .with_n_threads(Some(1))
+        .with_n_threads(Some(1))
         .has_header(true)
         .finish()?
         .select(target_column)?;
@@ -68,9 +66,7 @@ fn use_polars(
     let t_merging = Instant::now();
 
     // 3. groupby
-    let groupby_series = vec![
-        df.column("OpenStatus")?.clone(),
-    ];
+    let groupby_series = vec![df.column("OpenStatus")?.clone()];
 
     let target_column = vec![
         "ReputationAtPostCreation",
@@ -94,7 +90,7 @@ fn use_polars(
     // 4. Filtering
     let values = df.column("Tag1")?;
     let mask = values.eq("rust");
-    df = df.filter(&mask)?;
+    let _ = df.filter(&mask)?;
 
     let t_filtering = Instant::now();
 
@@ -134,10 +130,10 @@ fn use_polars(
     Ok(())
 }
 
-
 fn main() {
     let path = "/home/peter/Documents/TEST/RUST/stack-overflow/data/train_October_9_2012.csv";
-    let output_polars_eager_path = "/home/peter/Documents/TEST/RUST/stack-overflow/data/polars_eager_output.csv";
+    let output_polars_eager_path =
+        "/home/peter/Documents/TEST/RUST/stack-overflow/data/polars_eager_output.csv";
     let path_wikipedia = "/home/peter/Documents/TEST/RUST/stack-overflow/data/wikipedia.csv";
 
     use_polars(path, path_wikipedia, output_polars_eager_path).expect("Polar eager failed.");
