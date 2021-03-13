@@ -3,6 +3,7 @@ use chrono::DateTime;
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs::File;
 use std::time::Instant;
 
@@ -16,28 +17,25 @@ fn use_native_rust(
     let file = File::open(path)?;
 
     let mut rdr = csv::ReaderBuilder::new().delimiter(b',').from_reader(file);
-    let mut records: Vec<utils::NativeDataFrame> = Vec::new();
-    for result in rdr.deserialize() {
-        match result {
-            Ok(rec) => {
-                records.push(rec);
-            }
-            Err(e) => println!("{}", e),
-        };
-    }
+    let mut records: Vec<utils::NativeDataFrame> = rdr
+        .deserialize()
+        .into_iter()
+        .filter_map(|result| match result {
+            Ok(rec) => rec,
+            Err(e) => None,
+        })
+        .collect();
 
     let file = File::open(path_wikipedia)?;
     let mut rdr_wiki = csv::ReaderBuilder::new().delimiter(b',').from_reader(file);
-    let mut records_wikipedia: Vec<utils::WikiDataFrame> = Vec::new();
-
-    for result in rdr_wiki.deserialize() {
-        match result {
-            Ok(rec) => {
-                records_wikipedia.push(rec);
-            }
-            Err(e) => println!("{}", e),
-        };
-    }
+    let records_wikipedia: Vec<utils::WikiDataFrame> = rdr_wiki
+        .deserialize()
+        .into_iter()
+        .filter_map(|result| match result {
+            Ok(rec) => rec,
+            Err(e) => None,
+        })
+        .collect();
 
     let t_reading = Instant::now();
 
@@ -80,9 +78,9 @@ fn use_native_rust(
     let t_merging = Instant::now();
 
     let groups_hash: HashMap<String, (utils::GroupBy, i16)> = records
-        .iter() // .par_iter()
+        .par_iter()
         .fold(
-            HashMap::new(), // || HashMap::new()
+            || HashMap::with_capacity(10), // || HashMap::new()
             |mut hash_group: HashMap<String, (utils::GroupBy, i16)>, record| {
                 let group: utils::GroupBy = if let Some(wiki) = &record.Wikipedia {
                     utils::GroupBy {
@@ -117,30 +115,30 @@ fn use_native_rust(
                 };
                 hash_group
             },
-        ); // }
-           // .reduce(
-           //     || HashMap::new(),
-           //     |prev, other| {
-           //         let set1: HashSet<String> = prev.keys().cloned().collect();
-           //         let set2: HashSet<String> = other.keys().cloned().collect();
-           //         let unions: HashSet<String> = set1.union(&set2).cloned().collect();
-           //         let mut map = HashMap::new();
-           //         for key in unions.iter() {
-           //             map.insert(
-           //                 key.to_string(),
-           //                 match (prev.get(key), other.get(key)) {
-           //                     (Some((previous, count_prev)), Some((group, count_other))) => {
-           //                         (previous.clone() + group.clone(), count_prev + count_other)
-           //                     }
-           //                     (Some(previous), None) => previous.clone(),
-           //                     (None, Some(other)) => other.clone(),
-           //                     (None, None) => (utils::GroupBy::new(), 0),
-           //                 },
-           //             );
-           //         }
-           //         map
-           //     },
-           // );
+        )
+        .reduce(
+            || HashMap::new(),
+            |prev, other| {
+                let set1: HashSet<String> = prev.keys().cloned().collect();
+                let set2: HashSet<String> = other.keys().cloned().collect();
+                let unions: HashSet<String> = set1.union(&set2).cloned().collect();
+                let mut map = HashMap::new();
+                for key in unions.iter() {
+                    map.insert(
+                        key.to_string(),
+                        match (prev.get(key), other.get(key)) {
+                            (Some((previous, count_prev)), Some((group, count_other))) => {
+                                (previous.clone() + group.clone(), count_prev + count_other)
+                            }
+                            (Some(previous), None) => previous.clone(),
+                            (None, Some(other)) => other.clone(),
+                            (None, None) => (utils::GroupBy::new(), 0),
+                        },
+                    );
+                }
+                map
+            },
+        );
 
     let groups: Vec<utils::GroupBy> = groups_hash
         .iter()
