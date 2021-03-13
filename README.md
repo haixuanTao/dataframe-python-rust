@@ -8,7 +8,7 @@ To run:
 
 ## Download the data at:
 
-- `train_October_9_2012,csv` at https://www.kaggle.com/c/predict-closed-questions-on-stack-overflow/data?select=2012-07+Stack+Overflow.7z\
+- `train_October_9_2012,csv` at https://www.kaggle.com/c/predict-closed-questions-on-stack-overflow/data?select=train_October_9_2012.csv
 - wikipedia.csv at https://en.wikipedia.org/wiki/Comparison_of_programming_languages with `python get_wikipedia_table.py`
 
 ### Polars Lazy
