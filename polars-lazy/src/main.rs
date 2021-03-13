@@ -27,22 +27,17 @@ fn use_lazy_polars(
     output_path: &str,
 ) -> std::result::Result<(), Box<dyn std::error::Error>> {
     let t_initial = Instant::now();
-    let df_wikipedia = CsvReader::from_path(path_wikipedia)?
-        .with_encoding(CsvEncoding::LossyUtf8)
+    let df_wikipedia = LazyCsvReader::new(path_wikipedia.to_string())
+        // .with_encoding(CsvEncoding::LossyUtf8)
         // .with_n_threads(Some(1))
         .has_header(true)
-        .finish()?
-        .lazy();
+        .finish();
 
-    let mut df = CsvReader::from_path(path)?
-        .with_encoding(CsvEncoding::LossyUtf8)
+    let mut df = LazyCsvReader::new(path.to_string())
+        // .with_encoding(CsvEncoding::LossyUtf8)
         // .with_n_threads(Some(1))
         .has_header(true)
-        .finish()?;
-    let t_reading = Instant::now();
-
-    df = df
-        .lazy()
+        .finish()
         .with_columns(vec![
             col("PostCreationDate")
                 .map(lazy_str_to_date, Some(DataType::Date64))
@@ -88,7 +83,7 @@ fn use_lazy_polars(
         .expect("csv written");
 
     let t_writing = Instant::now();
-    println!("Read to write: {}", (t_writing - t_reading).as_millis());
+    println!("Read to write: {}", (t_writing - t_initial).as_millis());
     Ok(())
 }
 
