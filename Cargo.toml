@@ -4,4 +4,5 @@ members = [
     "polars-lazy",
     "polars-eager",
     "native-rust",
+    "native-rust-optimized",
 ]
