@@ -7,5 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-polars = { git =  "https://github.com/ritchie46/polars", features = ["simd", "parallel"]}
+polars-lazy = { git =  "https://github.com/ritchie46/polars", features = [ "csv-file"], version = "0.15.1"}
+polars = { git =  "https://github.com/ritchie46/polars", features = [ "csv-file"], version = "0.15.1"}
 # remove simd for stable cargo
+rayon = "1.5.1"

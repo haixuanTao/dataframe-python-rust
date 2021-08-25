@@ -204,7 +204,7 @@ fn main() {
     let path = "/home/peter/Documents/TEST/RUST/stack-overflow/data/train_October_9_2012.csv";
     let output_native_rust_path =
         "/home/peter/Documents/TEST/RUST/stack-overflow/data/native_rust_output.csv";
-    let path_wikipedia = "/home/peter/Documents/TEST/RUST/stack-overflow/data/wikipedia.csv";
+    let path_wikipedia = "/home/peter/Documents/BLOG/dataframe-python-rust/data/wikipedia.csv";
 
     use_native_rust(path, path_wikipedia, output_native_rust_path)
         .expect("Test of polar oriented result.");

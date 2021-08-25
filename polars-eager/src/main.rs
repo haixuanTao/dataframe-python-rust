@@ -1,4 +1,5 @@
 use polars::prelude::*;
+use rayon::prelude::*;
 use std::fs::File;
 use std::time::Instant;
 
@@ -12,8 +13,8 @@ fn count_words(column: &Series) -> std::result::Result<Series, PolarsError> {
     Ok(column
         .utf8()?
         .into_iter()
-        .map(|opt_name: Option<&str>| opt_name.map(|name: &str| name.split(' ').count() as u64))
-        .collect::<UInt64Chunked>()
+        .map(|opt_name: Option<&str>| opt_name.map(|name: &str| name.split(' ').count() as f64))
+        .collect::<Float64Chunked>()
         .into_series())
 }
 
@@ -37,12 +38,12 @@ fn use_polars(
 
     let mut df = CsvReader::from_path(path)?
         .with_encoding(CsvEncoding::LossyUtf8)
-        .with_n_threads(Some(1))
+        // .with_n_threads(Some(1))
         .has_header(true)
         .finish()?;
     let df_wikipedia = CsvReader::from_path(path_wikipedia)?
         .with_encoding(CsvEncoding::LossyUtf8)
-        .with_n_threads(Some(1))
+        // .with_n_threads(Some(1))
         .has_header(true)
         .finish()?
         .select(target_column)?;
@@ -131,10 +132,11 @@ fn use_polars(
 }
 
 fn main() {
-    let path = "/home/peter/Documents/TEST/RUST/stack-overflow/data/train_October_9_2012.csv";
+    let path =
+        "/home/peter/Documents/TEST/RUST/dataframe-python-rust/data/train_October_9_2012.csv";
     let output_polars_eager_path =
-        "/home/peter/Documents/TEST/RUST/stack-overflow/data/polars_eager_output.csv";
-    let path_wikipedia = "/home/peter/Documents/TEST/RUST/stack-overflow/data/wikipedia.csv";
+        "/home/peter/Documents/TEST/RUST/dataframe-python-rust/data/polars_eager_output.csv";
+    let path_wikipedia = "/home/peter/Documents/BLOG/dataframe-python-rust/data/wikipedia.csv";
 
     use_polars(path, path_wikipedia, output_polars_eager_path).expect("Polar eager failed.");
 }

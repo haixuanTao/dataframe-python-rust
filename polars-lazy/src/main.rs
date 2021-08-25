@@ -1,4 +1,7 @@
 use polars::prelude::*;
+use polars_lazy::dsl::col;
+use polars_lazy::prelude::*;
+use rayon::prelude::*;
 use std::fs::File;
 use std::time::Instant;
 
@@ -16,8 +19,8 @@ fn lazy_count_words(dates: Series) -> std::result::Result<Series, PolarsError> {
     Ok(dates
         .utf8()?
         .into_iter()
-        .map(|opt_name: Option<&str>| opt_name.map(|name: &str| name.split(' ').count() as u64))
-        .collect::<UInt64Chunked>()
+        .map(|opt_name: Option<&str>| opt_name.map(|name: &str| name.split(' ').count() as f64))
+        .collect::<Float64Chunked>()
         .into_series())
 }
 
@@ -40,14 +43,14 @@ fn use_lazy_polars(
         .finish()
         .with_columns(vec![
             col("PostCreationDate")
-                .map(lazy_str_to_date, Some(DataType::Date64))
-                .map(lazy_date_to_hour, Some(DataType::Date64))
+                .map(lazy_str_to_date, GetOutput::from_type(DataType::Date64))
+                .map(lazy_date_to_hour, GetOutput::from_type(DataType::Date64))
                 .alias("hour"),
             col("BodyMarkdown")
-                .map(lazy_count_words, Some(DataType::UInt64))
+                .map(lazy_count_words, GetOutput::from_type(DataType::UInt64))
                 .alias("newBodyMarkdown"),
         ])
-        .inner_join(df_wikipedia, col("Tag1"), col("Language"), None)
+        .inner_join(df_wikipedia, col("Tag1"), col("Language"))
         .groupby(vec![col("OpenStatus")])
         .agg(vec![
             col("ReputationAtPostCreation").mean(),
@@ -88,10 +91,11 @@ fn use_lazy_polars(
 }
 
 fn main() {
-    let path = "/home/peter/Documents/TEST/RUST/stack-overflow/data/train_October_9_2012.csv";
+    let path =
+        "/home/peter/Documents/TEST/RUST/dataframe-python-rust/data/train_October_9_2012.csv";
     let output_polars_lazy_path =
-        "/home/peter/Documents/TEST/RUST/stack-overflow/data/polars_lazy_output.csv";
-    let path_wikipedia = "/home/peter/Documents/TEST/RUST/stack-overflow/data/wikipedia.csv";
+        "/home/peter/Documents/TEST/RUST/dataframe-python-rust/data/polars_lazy_output.csv";
+    let path_wikipedia = "/home/peter/Documents/BLOG/dataframe-python-rust/data/wikipedia.csv";
 
     use_lazy_polars(path, path_wikipedia, output_polars_lazy_path)
         .expect("Test of polar lazy failed.");
